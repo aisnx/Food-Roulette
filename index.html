@@ -556,8 +556,7 @@
 /* ================================================================
  * 配置区 —— 接真实数据只需改这两项
  * ================================================================ */
-const AMAP_KEY = '';                 // 填入你的高德 Key（注意：Web服务 Key 会暴露在前端，见 README/清单的「安全提醒」）
-const DATA_SOURCE = 'mock';          // 'mock' = 内置演示数据 | 'amap' = 高德真实数据
+const DATA_SOURCE = 'amap';          // 'mock' = 内置演示数据 | 'amap' = 高德真实数据（经 /api 代理，Key 在服务端）
 
 const CUISINES = ['全部','火锅','烧烤','川菜','粤菜','日料','西餐','快餐','面食','韩餐','咖啡甜品','小吃'];
 
@@ -675,26 +674,28 @@ function applyPrefs(list, prefs) {
 
 /* ================================================================
  * AmapProvider —— 高德地图适配器（已预留，接入见清单）
- * 说明：使用的是「Web服务」API（restapi.amap.com/v3/...）。
- * ⚠️ 该 Key 直接放前端会暴露，正式上线请走「JS API + 域名白名单」或
- *    用 Cloudflare Worker 做代理，见 代码完善清单.md「安全提醒」。
+ * 通过 Cloudflare Pages Function（/api/*）代理调用高德「Web服务」API，
+ * Key 只存在服务端环境变量，不暴露在前端。
  * ================================================================ */
 function extractCuisine(typeStr) {
   if (!typeStr) return '其他';
   const map = {
-    '火锅': '火锅', '烧烤': '烧烤', '川菜': '川菜', '粤菜': '粤菜', '湘菜': '川菜',
-    '日本料理': '日料', '日式': '日料', '西餐': '西餐', '快餐': '快餐', '面': '面食',
+    '火锅': '火锅', '烧烤': '烧烤', '川菜': '川菜', '粤菜': '粤菜', '湘菜': '湘菜',
+    '日本料理': '日料', '日式': '日料', '西餐': '西餐', '快餐': '快餐',
     '韩国料理': '韩餐', '韩式': '韩餐', '咖啡': '咖啡甜品', '甜品': '咖啡甜品', '小吃': '小吃',
   };
-  for (const key in map) if (typeStr.indexOf(key) > -1) return map[key];
-  return typeStr.indexOf('餐饮') > -1 ? '其他' : '其他';
+  // 高德 type 形如「餐饮服务;中餐厅;川菜」，分号分层，从最具体的最后一段往前匹配
+  const segs = typeStr.split(';').reverse();
+  for (const seg of segs) {
+    for (const key in map) if (seg.indexOf(key) > -1) return map[key];
+  }
+  return '其他';
 }
 
 const AmapProvider = {
   /* 地址 → 坐标 */
   async geocode(address) {
-    const url = 'https://restapi.amap.com/v3/geocode/geo';
-    const r = await fetch(`${url}?key=${AMAP_KEY}&address=${encodeURIComponent(address)}`);
+    const r = await fetch(`/api/geocode?address=${encodeURIComponent(address)}`);
     const j = await r.json();
     if (j.status === '1' && j.geocodes && j.geocodes.length) {
       const [lng, lat] = j.geocodes[0].location.split(',').map(Number);
@@ -704,8 +705,7 @@ const AmapProvider = {
   },
   /* 坐标 → 地址（逆地理编码，供「定位」按钮使用） */
   async regeo(lng, lat) {
-    const url = 'https://restapi.amap.com/v3/geocode/regeo';
-    const r = await fetch(`${url}?key=${AMAP_KEY}&location=${lng},${lat}&extensions=base`);
+    const r = await fetch(`/api/regeo?location=${lng},${lat}`);
     const j = await r.json();
     if (j.status === '1' && j.regeocode) return j.regeocode.formatted_address || '';
     throw new Error(j.info || '逆地理编码失败');
@@ -713,17 +713,13 @@ const AmapProvider = {
   /* 周边检索 */
   async search(address, radiusKm, prefs) {
     const { lng, lat } = await this.geocode(address);
-    const url = 'https://restapi.amap.com/v3/place/around';
     const params = new URLSearchParams({
-      key: AMAP_KEY,
       location: `${lng},${lat}`,
       radius: Math.round(radiusKm * 1000),
       types: '050000',              // 餐饮大类
       offset: '50', page: '1',
-      sortrule: 'distance',
-      extensions: 'all',
     });
-    const r = await fetch(`${url}?${params.toString()}`);
+    const r = await fetch(`/api/search?${params.toString()}`);
     const j = await r.json();
     if (j.status !== '1') throw new Error(j.info || '周边搜索失败');
     let list = (j.pois || []).map((p) => AmapProvider.mapPoi(p));
@@ -746,7 +742,7 @@ const AmapProvider = {
 };
 
 function getProvider() {
-  return DATA_SOURCE === 'amap' && AMAP_KEY ? AmapProvider : MockProvider;
+  return DATA_SOURCE === 'amap' ? AmapProvider : MockProvider;
 }
 
 /* ================================================================
@@ -1055,13 +1051,14 @@ function renderList() {
     const item = document.createElement('div');
     item.className = 'restaurant-item' + (state.selected.has(idx) ? ' selected' : '');
     const color = AVATAR_COLORS[hashStr(r.name) % AVATAR_COLORS.length];
+    const safeName = escapeHtml(r.name);
     const rating = r.rating != null ? r.rating.toFixed(1) : '—';
     const price = r.price != null ? '¥' + r.price + '/人' : '—';
     const dist = r.distance != null ? r.distance + 'km' : '—';
     item.innerHTML = `
-      <div class="r-avatar" style="background:${color}">${r.name.charAt(0)}</div>
+      <div class="r-avatar" style="background:${color}">${escapeHtml(r.name.charAt(0))}</div>
       <div class="r-info">
-        <div class="r-name">${r.name}</div>
+        <div class="r-name">${safeName}</div>
         <div class="r-meta">
           <span class="tag">${r.cuisine}</span>
           <span class="r-rating">★ ${rating}</span>
