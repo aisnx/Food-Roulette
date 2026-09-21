@@ -5,3 +5,7 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Cloudflare wrangler 本地状态（部署用，不提交）
+.wrangler/
+.pages-deploy/
