@@ -491,7 +491,7 @@
           </select>
           <button class="btn" id="reselectBtn" style="font-size:13px; padding:8px 12px;">全选</button>
           <button class="btn" id="refreshBtn" style="font-size:13px; padding:8px 12px;">换一批</button>
-          <button class="btn" id="backSettingsBtn" style="font-size:13px; padding:8px 12px;">重设</button>
+          <button class="btn" id="backSettingsBtn" style="font-size:13px; padding:8px 12px;">回主页</button>
         </div>
       </div>
       <div class="restaurant-list" id="restaurantList"></div>
@@ -512,6 +512,7 @@
       <div class="wheel-actions">
         <button class="btn btn-primary btn-lg" id="spinBtn">开始</button>
         <button class="btn" id="backListBtn">重新挑选</button>
+        <button class="btn" id="homeBtn">回主页</button>
       </div>
     </section>
   </main>
@@ -1707,6 +1708,7 @@ function bindEvents() {
   // 转盘页
   $('spinBtn').addEventListener('click', spin);
   $('backListBtn').addEventListener('click', () => goBackToSource());
+  $('homeBtn').addEventListener('click', () => switchView('settings'));
 
   // 结果弹窗
   $('spinAgainBtn').addEventListener('click', spinAgain);
