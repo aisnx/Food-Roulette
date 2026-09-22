@@ -318,6 +318,24 @@
     display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
   }
 
+  /* ---------- 收藏 ---------- */
+  .favorites-list { display: flex; flex-direction: column; gap: 8px; }
+  .favorites-empty { font-size: 13px; color: var(--text-muted); }
+  .fav-item {
+    display: flex; align-items: center; gap: 10px;
+    background: #FFF7F1; border: 1.5px solid #F5E3D8; border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .fav-item .fav-info { flex: 1; min-width: 0; }
+  .fav-item .fav-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fav-item .fav-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .fav-item .fav-use { flex-shrink: 0; font-size: 13px; padding: 8px 14px; }
+  .fav-item .fav-del {
+    cursor: pointer; width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(232,69,44,0.1); color: var(--danger);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+  }
+
   /* ---------- 设置开关 ---------- */
   #wheelSettings { margin-top: 18px; }
   .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -376,6 +394,13 @@
       <div class="mode-switch">
         <button class="mode-btn on" id="modeRestaurant">周边餐厅</button>
         <button class="mode-btn" id="modeCustom">自定义转盘</button>
+      </div>
+
+      <div class="card" id="favoritesSection" style="margin-bottom:18px;">
+        <div class="field">
+          <label class="label">我的收藏<span class="hint">一键复用，无需重新定位搜索</span></label>
+          <div id="favoritesList" class="favorites-list"></div>
+        </div>
       </div>
 
       <div id="restaurantFields">
@@ -473,6 +498,7 @@
       <div class="bottom-bar" id="bottomBar">
         <div class="count" id="selectCount">已选 0 家</div>
         <button class="btn btn-primary btn-block btn-lg" id="toWheelBtn">装进转盘</button>
+        <button class="btn btn-block" id="favBtn" style="margin-top:8px;">收藏</button>
       </div>
     </section>
 
@@ -765,6 +791,7 @@ const state = {
   customItems: [],             // 自定义条目 [{name, weight}]
   customWheelItems: [],
   blacklist: [],               // 黑名单（永久排除的餐厅名）
+  favorites: [],               // 收藏的餐厅组合 [{id,name,items,time}]
   excludeWon: true,            // 抽中后不再出现（设置里可开关）
 };
 
@@ -843,6 +870,7 @@ function activateMode(mode) {
   $('modeCustom').classList.toggle('on', !isRest);
   $('restaurantFields').style.display = isRest ? '' : 'none';
   $('customFields').style.display = isRest ? 'none' : '';
+  $('favoritesSection').style.display = isRest ? '' : 'none';
   $('sourceLabel').textContent = isRest ? (getProvider() === MockProvider ? '演示数据' : '高德地图') : '自定义内容';
 }
 
@@ -1088,6 +1116,8 @@ function updateSelectCount() {
   const n = state.selected.size;
   $('selectCount').textContent = '已选 ' + n + ' 家（最多 20 家）';
   $('toWheelBtn').disabled = n < 2;
+  $('favBtn').disabled = n < 2;
+  $('favBtn').textContent = n >= 2 ? ('收藏这 ' + n + ' 家') : '收藏';
 }
 
 /* ================================================================
@@ -1172,18 +1202,12 @@ function drawWheel() {
     if (label.length > maxLen) label = label.slice(0, maxLen);
     const tx = cx + Math.cos(mid) * (R * 0.62);
     const ty = cy + Math.sin(mid) * (R * 0.62);
-    ctx.save();
-    ctx.translate(tx, ty);
-    // 文字沿半径方向「竖排」（从外往内读），左半圆翻转 180° 避免头朝下
-    let rot = -mid;
-    if (Math.cos(rot) < 0) rot += Math.PI;
-    ctx.rotate(rot);
+    // 文字始终水平朝上（不随轮盘旋转），只跟随所在分区的中心位置移动
     ctx.font = `bold ${fontPx}px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
     ctx.fillStyle = wheelUsed[i] ? 'rgba(255,255,255,0.45)' : '#fff';
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 3;
-    ctx.fillText(label, 0, 0);
-    ctx.restore();
+    ctx.fillText(label, tx, ty);
   }
 
   // 中心轴
@@ -1515,6 +1539,81 @@ function renderHistory() {
 }
 
 /* ================================================================
+ * 收藏（保存勾选好的餐厅组合，下次首页一键复用）
+ * ================================================================ */
+const FAVORITES_KEY = 'foodwheel_favorites';
+
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) state.favorites = arr; }
+  } catch (e) {}
+}
+function saveFavorites() {
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(state.favorites)); } catch (e) {}
+}
+
+function addFavorite() {
+  const items = [...state.selected].sort((a, b) => a - b).map(i => state.results[i]).filter(Boolean);
+  if (items.length < 2) { toast('至少选 2 家才能收藏'); return; }
+  const name = (state.address || '').trim() || '收藏';
+  state.favorites.unshift({
+    id: 'fav-' + Date.now(),
+    name,
+    items: items.map(r => ({ ...r })),   // 存快照，避免后续引用被改动
+    time: Date.now(),
+  });
+  if (state.favorites.length > 20) state.favorites.length = 20;
+  saveFavorites();
+  renderFavorites();
+  toast('已收藏，下次在首页「我的收藏」直接使用');
+}
+
+function removeFavorite(id) {
+  state.favorites = state.favorites.filter(f => f.id !== id);
+  saveFavorites();
+  renderFavorites();
+}
+
+function useFavorite(id) {
+  const fav = state.favorites.find(f => f.id === id);
+  if (!fav || fav.items.length < 2) { toast('该收藏已失效，请删除'); return; }
+  state.mode = 'restaurant';
+  state.address = fav.name;
+  state.results = fav.items.map(r => ({ ...r }));
+  state.selected = new Set(state.results.map((_, i) => i));
+  resetListFilters();
+  switchView('wheel');
+}
+
+function renderFavorites() {
+  const el = $('favoritesList');
+  if (!el) return;
+  if (!state.favorites.length) {
+    el.innerHTML = '<div class="favorites-empty">暂无收藏。搜索勾选餐厅后，点「收藏」即可保存。</div>';
+    return;
+  }
+  el.innerHTML = '';
+  state.favorites.forEach(fav => {
+    const d = new Date(fav.time);
+    const t = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const row = document.createElement('div');
+    row.className = 'fav-item';
+    row.innerHTML = `
+      <div class="fav-info">
+        <div class="fav-name">${escapeHtml(fav.name)}</div>
+        <div class="fav-meta">${fav.items.length} 家 · ${t}</div>
+      </div>
+      <button class="btn btn-primary fav-use">使用</button>
+      <div class="fav-del" title="删除收藏">×</div>
+    `;
+    row.querySelector('.fav-use').onclick = () => useFavorite(fav.id);
+    row.querySelector('.fav-del').onclick = () => removeFavorite(fav.id);
+    el.appendChild(row);
+  });
+}
+
+/* ================================================================
  * toast
  * ================================================================ */
 let toastTimer = null;
@@ -1603,6 +1702,7 @@ function bindEvents() {
   $('refreshBtn').addEventListener('click', () => doSearch(true));
   $('backSettingsBtn').addEventListener('click', () => switchView('settings'));
   $('toWheelBtn').addEventListener('click', () => { state.mode = 'restaurant'; switchView('wheel'); });
+  $('favBtn').addEventListener('click', addFavorite);
 
   // 转盘页
   $('spinBtn').addEventListener('click', spin);
@@ -1647,6 +1747,8 @@ renderCustomList();
 loadExcludeSetting();
 loadBlacklist();
 updateBlacklistUI();
+loadFavorites();
+renderFavorites();
 </script>
 </body>
 </html>
