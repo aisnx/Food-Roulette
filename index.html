@@ -320,7 +320,7 @@
 
   /* ---------- 收藏 ---------- */
   .favorites-list { display: flex; flex-direction: column; gap: 8px; }
-  .favorites-empty { font-size: 13px; color: var(--text-muted); }
+  .favorites-empty { font-size: 13px; color: var(--text-muted); text-align: center; }
   .fav-item {
     display: flex; align-items: center; gap: 10px;
     background: #FFF7F1; border: 1.5px solid #F5E3D8; border-radius: 12px;
@@ -337,7 +337,6 @@
   }
 
   /* ---------- 设置开关 ---------- */
-  #wheelSettings { margin-top: 18px; }
   .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
   .setting-title { font-size: 15px; font-weight: 600; }
   .setting-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
@@ -378,8 +377,14 @@
   <header>
     <div class="brand"><span class="logo">吃</span>今天吃什么</div>
     <div class="header-actions">
+      <button class="icon-btn" id="favBtnHeader" title="我的收藏">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>
       <button class="icon-btn" id="historyBtn" title="历史记录">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
   </header>
@@ -394,13 +399,6 @@
       <div class="mode-switch">
         <button class="mode-btn on" id="modeRestaurant">周边餐厅</button>
         <button class="mode-btn" id="modeCustom">自定义转盘</button>
-      </div>
-
-      <div class="card" id="favoritesSection" style="margin-bottom:18px;">
-        <div class="field">
-          <label class="label">我的收藏<span class="hint">一键复用，无需重新定位搜索</span></label>
-          <div id="favoritesList" class="favorites-list"></div>
-        </div>
       </div>
 
       <div id="restaurantFields">
@@ -435,10 +433,6 @@
         </div>
       </div>
 
-        <div class="blacklist-bar">
-          <span id="blacklistCount">黑名单：0 家</span>
-          <button class="btn" id="manageBlacklistBtn" style="font-size:13px; padding:8px 12px;">管理</button>
-        </div>
         <button class="btn btn-primary btn-block btn-lg" id="searchBtn" style="margin-top:18px;">开始找餐厅</button>
       </div><!-- /restaurantFields -->
 
@@ -460,19 +454,6 @@
           </div>
         </div>
         <button class="btn btn-primary btn-block btn-lg" id="customGoBtn" style="margin-top:18px;">生成转盘</button>
-      </div>
-
-      <div class="card" id="wheelSettings">
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-title">抽中后不再出现</div>
-            <div class="setting-desc">转出结果后把它暂时移出转盘，这一轮不会再抽到重复的</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="excludeToggle" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
       </div>
 
       <div class="sub-footer">数据来源：<span id="sourceLabel">演示数据</span>。信息仅供参考，以商家实际情况为准。</div>
@@ -546,6 +527,44 @@
     <div class="m-actions">
       <button class="btn btn-block" id="clearHistoryBtn">清空历史</button>
       <button class="btn btn-block" id="closeHistoryBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 收藏弹窗 -->
+<div class="modal-mask" id="favoritesModal">
+  <div class="modal">
+    <div class="m-title">我的收藏</div>
+    <div class="history-list" id="favoritesList"></div>
+    <div class="m-actions">
+      <button class="btn btn-block" id="closeFavoritesBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal-mask" id="settingsModal">
+  <div class="modal" style="text-align:left;">
+    <div class="m-title">设置</div>
+    <div class="setting-row" style="margin:16px 0 20px;">
+      <div class="setting-info">
+        <div class="setting-title">抽中后不再显示</div>
+        <div class="setting-desc">转出结果后把它暂时移出转盘，这一轮不会再抽到重复的</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="excludeToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row" style="margin-bottom:18px;">
+      <div class="setting-info">
+        <div class="setting-title">黑名单</div>
+        <div class="setting-desc" id="settingsBlacklistCount">已拉黑 0 家</div>
+      </div>
+      <button class="btn" id="settingsManageBlacklistBtn" style="font-size:13px; padding:8px 12px;">管理</button>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-block" id="closeSettingsBtn">关闭</button>
     </div>
   </div>
 </div>
@@ -871,7 +890,6 @@ function activateMode(mode) {
   $('modeCustom').classList.toggle('on', !isRest);
   $('restaurantFields').style.display = isRest ? '' : 'none';
   $('customFields').style.display = isRest ? 'none' : '';
-  $('favoritesSection').style.display = isRest ? '' : 'none';
   $('sourceLabel').textContent = isRest ? (getProvider() === MockProvider ? '演示数据' : '高德地图') : '自定义内容';
 }
 
@@ -1482,7 +1500,7 @@ function saveBlacklist() {
 }
 function isBlacklisted(name) { return state.blacklist.includes(name); }
 function updateBlacklistUI() {
-  $('blacklistCount').textContent = '黑名单：' + state.blacklist.length + ' 家';
+  $('settingsBlacklistCount').textContent = '已拉黑 ' + state.blacklist.length + ' 家';
 }
 function renderBlacklist() {
   const el = $('blacklistList');
@@ -1584,6 +1602,7 @@ function useFavorite(id) {
   state.results = fav.items.map(r => ({ ...r }));
   state.selected = new Set(state.results.map((_, i) => i));
   resetListFilters();
+  $('favoritesModal').classList.remove('show');
   switchView('wheel');
 }
 
@@ -1722,7 +1741,7 @@ function bindEvents() {
   $('closeShareBtn').addEventListener('click', () => $('shareModal').classList.remove('show'));
   $('shareModal').addEventListener('click', (e) => { if (e.target === $('shareModal')) $('shareModal').classList.remove('show'); });
   $('blacklistBtn').addEventListener('click', blacklistResult);
-  $('manageBlacklistBtn').addEventListener('click', () => { renderBlacklist(); $('blacklistModal').classList.add('show'); });
+  $('settingsManageBlacklistBtn').addEventListener('click', () => { renderBlacklist(); $('blacklistModal').classList.add('show'); });
   $('closeBlacklistBtn').addEventListener('click', () => $('blacklistModal').classList.remove('show'));
   $('clearBlacklistBtn').addEventListener('click', () => { state.blacklist = []; saveBlacklist(); renderBlacklist(); updateBlacklistUI(); toast('黑名单已清空'); });
   $('blacklistModal').addEventListener('click', (e) => { if (e.target === $('blacklistModal')) $('blacklistModal').classList.remove('show'); });
@@ -1737,6 +1756,16 @@ function bindEvents() {
     localStorage.removeItem(HISTORY_KEY); renderHistory(); toast('历史已清空');
   });
   $('historyModal').addEventListener('click', (e) => { if (e.target === $('historyModal')) $('historyModal').classList.remove('show'); });
+
+  // 收藏弹窗
+  $('favBtnHeader').addEventListener('click', () => { renderFavorites(); $('favoritesModal').classList.add('show'); });
+  $('closeFavoritesBtn').addEventListener('click', () => $('favoritesModal').classList.remove('show'));
+  $('favoritesModal').addEventListener('click', (e) => { if (e.target === $('favoritesModal')) $('favoritesModal').classList.remove('show'); });
+
+  // 设置弹窗
+  $('settingsBtn').addEventListener('click', () => { updateBlacklistUI(); $('settingsModal').classList.add('show'); });
+  $('closeSettingsBtn').addEventListener('click', () => $('settingsModal').classList.remove('show'));
+  $('settingsModal').addEventListener('click', (e) => { if (e.target === $('settingsModal')) $('settingsModal').classList.remove('show'); });
 }
 
 /* ================================================================
