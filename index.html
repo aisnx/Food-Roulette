@@ -506,6 +506,7 @@
     <div class="m-name" id="resultName"></div>
     <div class="m-stats" id="resultStats"></div>
     <div class="m-addr" id="resultAddr"></div>
+    <button class="btn btn-block" id="mapBtn" style="margin-bottom:8px;">地图导航</button>
     <button class="blacklist-link" id="blacklistBtn">拉黑这家店，以后不再出现</button>
     <div class="share-row">
       <button class="btn" id="copyResultBtn">复制结果</button>
@@ -774,6 +775,11 @@ const AmapProvider = {
   },
   mapPoi(p) {
     const biz = p.biz_ext || {};
+    let lng = null, lat = null;
+    if (p.location) {
+      const parts = String(p.location).split(',');
+      if (parts.length === 2) { lng = Number(parts[0]); lat = Number(parts[1]); }
+    }
     return {
       id: p.id,
       name: p.name,
@@ -782,6 +788,7 @@ const AmapProvider = {
       price: biz.cost ? Number(biz.cost) : null,
       distance: p.distance != null ? round1(Number(p.distance) / 1000) : null,
       address: p.address || '',
+      lng, lat,                     // gcj02 坐标，供结果弹窗「地图导航」使用
       open: true,                    // 高德基础接口不含营业状态，恒为营业中
     };
   },
@@ -1345,6 +1352,8 @@ function showResult(r) {
     `;
     $('resultAddr').textContent = (r.address || '') + '。营业状态以商家实际情况为准。';
   }
+  // 地图导航：只有带坐标的餐厅结果才显示
+  $('mapBtn').style.display = (r.lng != null && r.lat != null) ? 'block' : 'none';
   $('resultModal').classList.add('show');
   syncResultButtons();
   saveHistory(r);
@@ -1741,6 +1750,12 @@ function bindEvents() {
   $('closeShareBtn').addEventListener('click', () => $('shareModal').classList.remove('show'));
   $('shareModal').addEventListener('click', (e) => { if (e.target === $('shareModal')) $('shareModal').classList.remove('show'); });
   $('blacklistBtn').addEventListener('click', blacklistResult);
+  $('mapBtn').addEventListener('click', () => {
+    if (currentResult && currentResult.lng != null && currentResult.lat != null) {
+      const url = `https://uri.amap.com/marker?position=${currentResult.lng},${currentResult.lat}&name=${encodeURIComponent(currentResult.name)}&coordinate=gaode`;
+      window.open(url, '_blank');
+    }
+  });
   $('settingsManageBlacklistBtn').addEventListener('click', () => { renderBlacklist(); $('blacklistModal').classList.add('show'); });
   $('closeBlacklistBtn').addEventListener('click', () => $('blacklistModal').classList.remove('show'));
   $('clearBlacklistBtn').addEventListener('click', () => { state.blacklist = []; saveBlacklist(); renderBlacklist(); updateBlacklistUI(); toast('黑名单已清空'); });
